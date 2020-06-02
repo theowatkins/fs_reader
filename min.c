@@ -5,8 +5,8 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
 
     /* initialize arg struct */
     args->verbose = 0;
-    args->part = NULL;
-    args->sub_part = NULL;
+    args->part = 0;
+    args->sub_part = 0;
     args->image_file = NULL;
     args->path = NULL;
     args->dst_path = NULL;
@@ -17,10 +17,10 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
                 args->verbose = 1;
                 break;
             case 'p':
-                args->part = optarg;
+                //args->part = optarg;
                 break;
             case 's':
-                args->sub_part = optarg;
+               // args->sub_part = optarg;
                 break;
             default: 
                 print_usage(command_type);
@@ -72,7 +72,7 @@ int partition_invalid(FILE *f, int offset) {
     fread(valid_1, 1, 1, f);
     fread(valid_2, 1, 1, f);
 
-    if (valid_1 == VALID_ONE && valid_2 == VALID_TWO) {
+    if (*valid_1 == VALID_ONE && *valid_2 == VALID_TWO) {
         return 0;
     }
 
@@ -83,11 +83,12 @@ int get_part_offset(Args *args, FILE *f) {
     PartitionEntry *part;
     Part *ret;
     int offset = 0;
+    char type;
 
     part = malloc(sizeof(PartitionEntry));
     ret = malloc(sizeof(Part));
-    
-    if (args->part) {
+
+  //  if (args->part) {
         /* navigate to partition table */
         if ((offset = fseek(f, PART_TABLE_LOC, SEEK_SET)) < 0) {
             perror("fseek failed");
@@ -95,28 +96,29 @@ int get_part_offset(Args *args, FILE *f) {
         }
 
         /* check partition table validity */
-        if (partition_invalid(f, offset)) {
+     /*   if (partition_invalid(f, offset)) {
             fprintf(stderr, "Invalid partition table\n");
             exit(-1);
         }
 
-        /* navigate to specified partition */
+        /* navigate to specified partition 
         if ((offset = fseek(f, 
                 PART_TABLE_LOC + (sizeof(PartitionEntry) * args->part),
                 SEEK_SET)) < 0) {
             perror("fseek failed");
             exit(-1);
-        }
+        }*/
 
         /* read partition table entry into my struct */
         fread(part, sizeof(PartitionEntry), 1, f);
 
-        if (part->type != BOOT_MAGIC) {
+        printf("Type %d\n", part->type);
+
+      /*  if (part->type != BOOT_MAGIC) {
             fprintf(stderr, "Invalid type of partition table entry\n");
             exit(-1);
-        }
+        }*/
 
         /* return offset of start of partition in bytes */
-        return part->lFirst * SECTOR_SIZE;
-    }
+        return part->lfirst * SECTOR_SIZE;
 }

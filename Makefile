@@ -1,5 +1,5 @@
 CC=gcc
-CFLAGS= -Wall 
+CFLAGS=  
 LDFLAGS=
 DEBUG= -g
 

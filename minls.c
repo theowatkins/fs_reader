@@ -4,6 +4,7 @@ int main (int argc, char *argv[]) {
     FILE *f;
     Args *args = malloc(sizeof(Args));
     Part part;
+    int part_offset;
 
     get_args(argc, argv, args, LS_FLAG);
 
