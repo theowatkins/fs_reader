@@ -14,6 +14,8 @@
 #define VALID_TWO 0xAA
 #define SECTOR_SIZE 512
 #define BOOT_MAGIC 0x81
+#define SUB 2
+#define REG 1
 
 typedef struct Args {
     int verbose;

@@ -20,6 +20,10 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
                 args->part = atoi(optarg);
                 break;
             case 's':
+                if (args->part == -1) {
+                    print_usage(command_type);
+                    exit(-1);
+                }
                 args->sub_part = atoi(optarg);
                 break;
             default: 
@@ -59,6 +63,24 @@ void print_usage(int command_type) {
     else {
         printf("Usage : minget [ -v ] [ -p part [ -s subpart ] ] imagefile srcpath [ dstpath ]\n");
     }
+
+    printf("\nOptions:\n");
+    printf("-p part --- select partition for filesystem (default: none)\n");
+    printf("-s sub --- select subpartition for filesystem (default: none)\n");
+    printf("-v verbose --- increase verbosity level\n\n");
+}
+
+void print_part(PartitionEntry *p, int type) {
+    if (type == SUB) {
+        printf("\nSub-partition table:\n");
+    }
+    else {
+        printf("\nPartition table\n");
+    }
+
+    printf("\ttype: 0x%x\n", p->type);
+    printf("\tlFirst: %d\n", p->lFirst);
+    printf("\tsize: %d\n\n", p->size);
 }
 
 int partition_invalid(FILE *f) {
@@ -117,6 +139,10 @@ void get_partition(Args *args, FILE *f, Part *part) {
         exit(-1);
     }
 
+    if (args->verbose) {
+        print_part(part_entry, REG);
+    }
+
     if (args->sub_part != -1) {
         /* go to partition */
         if (fseek(f, part_entry->lFirst * SECTOR_SIZE, SEEK_SET) < 0) {
@@ -141,6 +167,10 @@ void get_partition(Args *args, FILE *f, Part *part) {
         if (fread(part_entry, sizeof(PartitionEntry), 1, f) < 1) {
             perror("fread failed");
             exit(-1);
+        }
+
+        if (args->verbose) {
+            print_part(part_entry, SUB);
         }
     }
 
