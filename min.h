@@ -13,20 +13,20 @@
 #define VALID_ONE 0x55
 #define VALID_TWO 0xAA
 #define SECTOR_SIZE 512
-#define BOOT_MAGIC 0x80
+#define BOOT_MAGIC 0x81
 
 typedef struct Args {
-    uint8_t verbose;
-    uint8_t part;
-    uint8_t sub_part;
+    int verbose;
+    int part;
+    int sub_part;
     char *image_file;
     char *path;
     char *dst_path;
 } Args;
 
 typedef struct Part {
-    int start;
-    int end;
+    uint32_t start;
+    uint32_t end;
 } Part;
 
 typedef struct __attribute__ ((__packed__)) PartitionEntry {
@@ -38,7 +38,7 @@ typedef struct __attribute__ ((__packed__)) PartitionEntry {
     uint8_t end_head;
     uint8_t end_sec;
     uint8_t end_cyl;
-    uint32_t lfirst;  
+    uint32_t lFirst;  
     uint32_t size;
 } PartitionEntry;
 
@@ -62,6 +62,6 @@ void get_args(int argc, char **argv, Args *args, int command_type);
 
 void print_usage(int command_type);
 
-int get_part_offset(Args *args, FILE *f);
+void get_partition(Args *args, FILE *f, Part *part);
 
 #endif

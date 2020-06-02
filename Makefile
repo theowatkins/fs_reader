@@ -21,7 +21,7 @@ min.o: min.c
 	${CC} ${CFLAGS} ${DEBUG} -c -o min.o min.c
 
 clean:
-	rm *.o
+	rm minls minget *.o
 
 
 

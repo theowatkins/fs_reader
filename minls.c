@@ -3,7 +3,7 @@
 int main (int argc, char *argv[]) {
     FILE *f;
     Args *args = malloc(sizeof(Args));
-    Part part;
+    Part *part = malloc(sizeof(Part));
 
     get_args(argc, argv, args, LS_FLAG);
 
@@ -14,7 +14,10 @@ int main (int argc, char *argv[]) {
     }
 
     /* get partition info */
-    part_offset = get_part_offset(args, f);
+    get_partition(args, f, part);
+
+    free(args);
+    free(part);
 
     exit(0);
 }
