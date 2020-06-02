@@ -13,9 +13,11 @@
 #define VALID_ONE 0x55
 #define VALID_TWO 0xAA
 #define SECTOR_SIZE 512
-#define BOOT_MAGIC 0x81
 #define SUB 2
 #define REG 1
+#define MINIX_TYPE 0x81
+#define SUPER_OFFSET 0x400
+#define DIRECT_ZONES 7
 
 typedef struct Args {
     int verbose;
@@ -44,20 +46,35 @@ typedef struct __attribute__ ((__packed__)) PartitionEntry {
     uint32_t size;
 } PartitionEntry;
 
-typedef struct __attribute__ ((__packed__)) SuperBlock {
-  uint32_t s_ninodes;              /* # usable inodes on the minor device */
-  uint32_t s_nzones;           /* total device size, including bit maps etc */
-  int16_t s_imap_blocks;          /* # of blocks used by inode bit map */
-  int16_t s_zmap_blocks;          /* # of blocks used by zone bit map */
-  uint16_t s_firstdatazone_old;  /* number of first data zone (small) */
-  int16_t s_log_zone_size;        /* log2 of blocks/zone */
-  int16_t s_pad;                 /* try to avoid compiler-dependent padding */
-  uint32_t s_max_size;             /* maximum file size on this device */
-  uint32_t s_zones;            /* number of zones (replaces s_nzones in V2) */
-  int16_t s_magic;                /* magic number to recognize super-blocks */
-  int16_t s_pad2;                 /* try to avoid compiler-dependent padding */
-  uint16_t s_block_size;           /* block size in bytes. */
-  uint8_t s_disk_version;          /* filesystem format sub-version */
+typedef struct __attribute__ ((__packed__)) Inode {
+    uint16_t mode; /* mode */
+    uint16_t links; /* number or links */
+    uint16_t uid;
+    uint16_t gid;
+    uint32_t size;
+    int32_t atime;
+    int32_t mtime;
+    int32_t ctime;
+    uint32_t zone[DIRECT_ZONES];
+    uint32_t indirect;
+    uint32_t two_indirect;
+    uint32_t unused;
+} Inode;
+
+typedef struct __attribute__ ((__packed__)) SuperBlock { 
+    uint32_t ninodes; /* number of inodes in this filesystem */
+    uint16_t pad1; /* make things line up properly */
+    int16_t i_blocks; /* # of blocks used by inode bit map */
+    int16_t z_blocks; /* # of blocks used by zone bit map */
+    uint16_t firstdata; /* number of first data zone */
+    int16_t log_zone_size; /* log2 of blocks per zone */
+    int16_t pad2; /* make things line up again */
+    uint32_t max_file; /* maximum file size */
+    uint32_t zones; /* number of zones on disk */
+    int16_t magic; /* magic number */
+    int16_t pad3; /* make things line up again */
+    uint16_t blocksize; /* block size in bytes */
+    uint8_t subversion; /* filesystem sub–version */
 } SuperBlock;
 
 void get_args(int argc, char **argv, Args *args, int command_type);
@@ -65,5 +82,7 @@ void get_args(int argc, char **argv, Args *args, int command_type);
 void print_usage(int command_type);
 
 void get_partition(Args *args, FILE *f, Part *part);
+
+void print_superblock(FILE *f);
 
 #endif

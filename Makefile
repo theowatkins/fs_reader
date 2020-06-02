@@ -1,12 +1,12 @@
 CC=gcc
-CFLAGS= -Wall 
+CFLAGS=  
 LDFLAGS=
 DEBUG= -g
 
 all: minls minget
 
-minls: minls.o min.o
-	${CC} ${CFLAGS} ${DEBUG} -o minls minls.o min.o
+minls: minls.o min.o 
+	${CC} ${CFLAGS} ${DEBUG} -o minls minls.o min.o 
 
 minget: minget.o min.o
 	${CC} ${CFLAGS} ${DEBUG} -o minget minget.o min.o
