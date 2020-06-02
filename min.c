@@ -64,16 +64,21 @@ void print_usage(int command_type) {
 int partition_invalid(FILE *f) {
     uint8_t valid_1, valid_2;
 
+    /* head should be at beginning of disk or outer partition */
     if (fseek(f, PART_TABLE_VALID, SEEK_CUR) < 0) {
         perror("fseek failed");
         exit(-1);
     }
 
-    fread(&valid_1, 1, 1, f);
-    fread(&valid_2, 1, 1, f);
-
-    printf("valid 1: %x\n", valid_1);
-    printf("valid 2: %x\n", valid_2);
+    /* read signature */
+    if (fread(&valid_1, 1, 1, f) < 1) {
+        perror("fread failed");
+        exit(-1);
+    }
+    if (fread(&valid_2, 1, 1, f) < 1) {
+        perror("fread failed");
+        exit(-1);
+    }
 
     if (valid_1 == VALID_ONE && valid_2 == VALID_TWO) {
         return 0;
@@ -83,35 +88,65 @@ int partition_invalid(FILE *f) {
 }
 
 void get_partition(Args *args, FILE *f, Part *part) {
-    PartitionEntry *part_entry;
+    PartitionEntry *part_entry, *sub_part;
 
     part_entry = malloc(sizeof(PartitionEntry));
+    sub_part = malloc(sizeof(PartitionEntry));
 
-    if (args->part != -1) {
-        /* check partition table validity */
-        if (partition_invalid(f)) {
-            fprintf(stderr, "Invalid partition table\n");
+    /* check partition table validity */
+    if (partition_invalid(f)) {
+        fprintf(stderr, "Invalid partition table\n");
+        exit(-1);
+    }
+
+    /* navigate to specified partition */
+    if (fseek(f, PART_TABLE_LOC + (sizeof(PartitionEntry) * args->part),
+                SEEK_SET) < 0) {
+        perror("fseek failed");
+        exit(-1);
+    }
+
+    /* read partition table entry into my struct */
+    if (fread(part_entry, sizeof(PartitionEntry), 1, f) < 1) {
+        perror("fread failed");
+        exit(-1);
+    }
+
+    if (part_entry->type != BOOT_MAGIC) {
+        fprintf(stderr, "Invalid type of partition table entry\n");
+        exit(-1);
+    }
+
+    if (args->sub_part != -1) {
+        /* go to partition */
+        if (fseek(f, part_entry->lFirst * SECTOR_SIZE, SEEK_SET) < 0) {
+            perror("fseek failed");
             exit(-1);
         }
 
-        /* navigate to specified partition */
-        if (fseek(f, PART_TABLE_LOC + (sizeof(PartitionEntry) * args->part),
-                    SEEK_SET) < 0) {
+        /* check sub partition table validity */
+        if (partition_invalid(f)) {
+            fprintf(stderr, "Invalid sub-partition table\n");
+            exit(-1);
+        }
+
+        /* go to sub partition entry */
+        if (fseek(f, (part_entry->lFirst * SECTOR_SIZE) + PART_TABLE_LOC + 
+                (sizeof(PartitionEntry) * args->sub_part), SEEK_SET) < 0) {
             perror("fseek failed");
             exit(-1);
         }
 
         /* read partition table entry into my struct */
-        fread(part_entry, sizeof(PartitionEntry), 1, f);
-
-        if (part_entry->type != BOOT_MAGIC) {
-            fprintf(stderr, "Invalid type of partition table entry\n");
+        if (fread(part_entry, sizeof(PartitionEntry), 1, f) < 1) {
+            perror("fread failed");
             exit(-1);
         }
-
-        part->start = part_entry->lFirst * SECTOR_SIZE;
-        part->end = part->start + (part_entry->size * SECTOR_SIZE);
-
-        free(part_entry);
     }
+
+    part->start = part_entry->lFirst * SECTOR_SIZE;
+    part->end = part->start + (part_entry->size * SECTOR_SIZE);
+
+    free(part_entry);
+    free(sub_part);
 }

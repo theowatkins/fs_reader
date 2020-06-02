@@ -13,8 +13,10 @@ int main (int argc, char *argv[]) {
         exit(-1);
     }
 
-    /* get partition info */
-    get_partition(args, f, part);
+    if (args->part != -1) {
+        /* get partition info */
+        get_partition(args, f, part);
+    }
 
     free(args);
     free(part);
