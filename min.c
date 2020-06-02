@@ -60,3 +60,63 @@ void print_usage(int command_type) {
         printf("Usage : minget [ -v ] [ -p part [ -s subpart ] ] imagefile srcpath [ dstpath ]\n");
     }
 }
+
+int partition_invalid(FILE *f, int offset) {
+    uint8_t *valid_1, *valid_2;
+
+    if (fseek(f, offset + PART_TABLE_VALID, SEEK_SET) < 0) {
+        perror("fseek failed");
+        exit(-1);
+    }
+
+    fread(valid_1, 1, 1, f);
+    fread(valid_2, 1, 1, f);
+
+    if (valid_1 == VALID_ONE && valid_2 == VALID_TWO) {
+        return 0;
+    }
+
+    return 1;
+}
+
+int get_part_offset(Args *args, FILE *f) {
+    PartitionEntry *part;
+    Part *ret;
+    int offset = 0;
+
+    part = malloc(sizeof(PartitionEntry));
+    ret = malloc(sizeof(Part));
+    
+    if (args->part) {
+        /* navigate to partition table */
+        if ((offset = fseek(f, PART_TABLE_LOC, SEEK_SET)) < 0) {
+            perror("fseek failed");
+            exit(-1);
+        }
+
+        /* check partition table validity */
+        if (partition_invalid(f, offset)) {
+            fprintf(stderr, "Invalid partition table\n");
+            exit(-1);
+        }
+
+        /* navigate to specified partition */
+        if ((offset = fseek(f, 
+                PART_TABLE_LOC + (sizeof(PartitionEntry) * args->part),
+                SEEK_SET)) < 0) {
+            perror("fseek failed");
+            exit(-1);
+        }
+
+        /* read partition table entry into my struct */
+        fread(part, sizeof(PartitionEntry), 1, f);
+
+        if (part->type != BOOT_MAGIC) {
+            fprintf(stderr, "Invalid type of partition table entry\n");
+            exit(-1);
+        }
+
+        /* return offset of start of partition in bytes */
+        return part->lFirst * SECTOR_SIZE;
+    }
+}
