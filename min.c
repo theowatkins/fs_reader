@@ -122,3 +122,43 @@ int get_part_offset(Args *args, FILE *f) {
         /* return offset of start of partition in bytes */
         return part->lfirst * SECTOR_SIZE;
 }
+
+#include "min.h"
+
+void print_inodes(FILE *f, SuperBlock *super){
+   int offset = 0;
+   if ((offset = fseek(f, SUPER_OFFSET + 
+   (super->blocksize * (super->i_blocks + super->z_blocks))
+   , SEEK_SET)) < 0) {
+      perror("fseek failed");
+      exit(-1);
+   }
+}
+
+void print_superblock(FILE *f) {
+   int offset = 0;
+   SuperBlock* superblock = malloc(sizeof(SuperBlock));
+
+   if ((offset = fseek(f, SUPER_OFFSET, SEEK_SET)) < 0) {
+      perror("fseek failed");
+      exit(-1);
+   }
+   
+
+   fread(superblock, sizeof(SuperBlock), 1, f);
+   printf("Superblock Contents:\nStored Fields:\n");
+   printf("  ninodes %12u\n", superblock->ninodes);
+   printf("  i_blocks %11d\n", superblock->i_blocks);
+   printf("  z_blocks %11d\n", superblock->z_blocks);
+   printf("  firstdata %10u\n", superblock->firstdata);
+   printf("  log_zone_size %6d (zone size: %d)\n", 
+   superblock->log_zone_size, 
+   superblock->blocksize << superblock->log_zone_size);
+   printf("  max_file %11u\n", superblock->max_file);
+   printf("  magic%*s0x%x\n", 9, "", superblock->magic);
+   printf("  zones %14d\n", superblock->zones);
+   printf("  blocksize %10u\n", superblock->blocksize);
+   printf("  subversion %9u\n", superblock->subversion);
+}
+
+

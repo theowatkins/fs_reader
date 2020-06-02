@@ -14,8 +14,7 @@ int main (int argc, char *argv[]) {
         exit(-1);
     }
 
-    /* get partition info */
-    part_offset = get_part_offset(args, f);
+    print_superblock(f);
 
     exit(0);
 }
