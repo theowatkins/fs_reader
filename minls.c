@@ -13,6 +13,8 @@ int main (int argc, char *argv[]) {
         exit(-1);
     }
 
+    print_superblock(f);
+
     if (args->part != -1) {
         /* get partition info */
         get_partition(args, f, part);

@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <time.h>
 
 #define LS_FLAG 0
 #define GET_FLAG 1
@@ -18,6 +19,19 @@
 #define MINIX_TYPE 0x81
 #define SUPER_OFFSET 0x400
 #define DIRECT_ZONES 7
+
+#define FILE_TYPE_MASK 0170000 /* File type mask */
+#define REG_FILE 0100000 /* Regular file */
+#define DIRECTORY 0040000 /* Directory */
+#define OWNER_READ 0000400 /* Owner read permission */
+#define OWNER_WRITE 0000200 /* Owner write permission */
+#define OWNER_EXECUTE 0000100 /* Owner execute permission */
+#define GROUP_READ 0000040 /* Group read permission */
+#define GROUP_WRITE 0000020 /* Group write permission */
+#define GROUP_EXECUTE 0000010  /* Group execute permission */
+#define OTHER_READ 0000004 /* Other read permission */
+#define OTHER_WRITE 0000002 /* Other write permission */
+#define OTHER_EXECUTE 0000001 /* Other execute permission */
 
 typedef struct Args {
     int verbose;

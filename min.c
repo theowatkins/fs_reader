@@ -102,7 +102,7 @@ int partition_invalid(FILE *f) {
         exit(-1);
     }
 
-    if (*valid_1 == VALID_ONE && *valid_2 == VALID_TWO) {
+    if (valid_1 == VALID_ONE && valid_2 == VALID_TWO) {
         return 0;
     }
 
@@ -134,7 +134,7 @@ void get_partition(Args *args, FILE *f, Part *part) {
         exit(-1);
     }
 
-    if (part_entry->type != BOOT_MAGIC) {
+    if (part_entry->type != MINIX_TYPE) {
         fprintf(stderr, "Invalid type of partition table entry\n");
         exit(-1);
     }
@@ -181,16 +181,89 @@ void get_partition(Args *args, FILE *f, Part *part) {
     free(sub_part);
 }
 
-#include "min.h"
+void print_permission(Inode* inode){
+    int cnt = 0;
+    printf("(");
+    while (cnt != 10){
+        if ((inode->mode & DIRECTORY) && cnt == 0) {
+            printf("d");
+            cnt++;
+        }
+        if ((inode->mode & OWNER_READ) && cnt == 1){
+            printf("r");
+            cnt++;
+        }
+        if ((inode->mode & OWNER_WRITE) && cnt == 2){
+            printf("w");
+            cnt++;
+        }
+        if ((inode->mode & OWNER_EXECUTE) && cnt == 3){
+            printf("x");
+            cnt++;
+        }
+        if ((inode->mode & GROUP_READ) && cnt == 4){
+            printf("r");
+            cnt++;
+        }
+        if ((inode->mode & GROUP_WRITE) && cnt == 5){
+            printf("w");
+            cnt++;
+        }
+        if ((inode->mode & GROUP_EXECUTE) && cnt == 6){
+            printf("x");
+            cnt++;
+        }
+        if ((inode->mode & OTHER_READ) && cnt == 7){
+            printf("r");
+            cnt++;
+        }
+        if ((inode->mode & OTHER_WRITE) && cnt == 8){
+            printf("w");
+            cnt++;
+        }
+        if ((inode->mode & OTHER_EXECUTE) && cnt == 9){
+            printf("x");
+            cnt++;
+        }
+        else {
+            printf("-");
+            cnt++;
+        }
+    }
+    printf(")\n");
+}
+
+void print_time(time_t time){
+    char buf[100];
+    struct tm  ts;
+    ts = *localtime(&time);
+    strftime(buf, sizeof(buf), "%a %m %d %H:%M:%S %Y", &ts);
+    printf("%s\n", buf);
+}
 
 void print_inodes(FILE *f, SuperBlock *super){
-   int offset = 0;
-   if ((offset = fseek(f, SUPER_OFFSET + 
-   (super->blocksize * (super->i_blocks + super->z_blocks))
-   , SEEK_SET)) < 0) {
-      perror("fseek failed");
-      exit(-1);
-   }
+    int offset = 0;
+    Inode* inode = malloc(sizeof(Inode)); 
+    if ((offset = fseek(f,  
+        (2 + super->i_blocks + super->z_blocks) * super->blocksize, 
+        SEEK_SET)) < 0) {
+        perror("fseek failed");
+        exit(-1);
+    }
+    fread(inode, sizeof(Inode), 1, f);
+    printf("File inode:\n");
+    printf("  uint16_t mode 0x%x ", inode->mode);
+    print_permission(inode);
+    printf("  uint16_t links %u\n", inode->links);
+    printf("  uint16_t uid %u\n", inode->uid);
+    printf("  uint16_t gid %u\n", inode->gid);
+    printf("  uint32_t size %u\n", inode->size);
+    printf("  uint32_t atime %u --- ", inode->atime);
+    print_time(inode->atime);
+    printf("  uint32_t mtime %u --- ", inode->mtime);
+    print_time(inode->mtime);
+    printf("  uint32_t ctime %u --- ", inode->ctime);
+    print_time(inode->ctime);
 }
 
 void print_superblock(FILE *f) {
@@ -202,7 +275,6 @@ void print_superblock(FILE *f) {
       exit(-1);
    }
    
-
    fread(superblock, sizeof(SuperBlock), 1, f);
    printf("Superblock Contents:\nStored Fields:\n");
    printf("  ninodes %12u\n", superblock->ninodes);
@@ -217,6 +289,7 @@ void print_superblock(FILE *f) {
    printf("  zones %14d\n", superblock->zones);
    printf("  blocksize %10u\n", superblock->blocksize);
    printf("  subversion %9u\n", superblock->subversion);
+   print_inodes(f, superblock);
 }
 
 
