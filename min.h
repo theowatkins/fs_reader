@@ -17,8 +17,10 @@
 #define SUB 2
 #define REG 1
 #define MINIX_TYPE 0x81
+#define BOOT_MAGIC 0x80
 #define SUPER_OFFSET 0x400
 #define DIRECT_ZONES 7
+#define P_TABLE_SIZE 4
 
 #define FILE_TYPE_MASK 0170000 /* File type mask */
 #define REG_FILE 0100000 /* Regular file */
