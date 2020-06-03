@@ -4,6 +4,8 @@ int main (int argc, char *argv[]) {
     FILE *f;
     Args *args = malloc(sizeof(Args));
     Part *part = malloc(sizeof(Part));
+    SuperBlock* superblock = malloc(sizeof(SuperBlock));
+    Inode* inode = malloc(sizeof(Inode)); 
 
     get_args(argc, argv, args, LS_FLAG);
 
@@ -13,12 +15,13 @@ int main (int argc, char *argv[]) {
         exit(-1);
     }
 
-    print_superblock(f);
-
     if (args->part != -1) {
         /* get partition info */
         get_partition(args, f, part);
     }
+
+    get_superblock(args, f, superblock);
+    get_inode(args, f, superblock, inode);
 
     free(args);
     free(part);

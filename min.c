@@ -241,9 +241,8 @@ void print_time(time_t time){
     printf("%s\n", buf);
 }
 
-void print_inodes(FILE *f, SuperBlock *super){
+void get_inode(Args *args, FILE *f, SuperBlock *super, Inode *inode){
     int offset = 0;
-    Inode* inode = malloc(sizeof(Inode)); 
     if ((offset = fseek(f,  
         (2 + super->i_blocks + super->z_blocks) * super->blocksize, 
         SEEK_SET)) < 0) {
@@ -251,45 +250,50 @@ void print_inodes(FILE *f, SuperBlock *super){
         exit(-1);
     }
     fread(inode, sizeof(Inode), 1, f);
-    printf("File inode:\n");
-    printf("  uint16_t mode 0x%x ", inode->mode);
-    print_permission(inode);
-    printf("  uint16_t links %u\n", inode->links);
-    printf("  uint16_t uid %u\n", inode->uid);
-    printf("  uint16_t gid %u\n", inode->gid);
-    printf("  uint32_t size %u\n", inode->size);
-    printf("  uint32_t atime %u --- ", inode->atime);
-    print_time(inode->atime);
-    printf("  uint32_t mtime %u --- ", inode->mtime);
-    print_time(inode->mtime);
-    printf("  uint32_t ctime %u --- ", inode->ctime);
-    print_time(inode->ctime);
+
+    if (args->verbose){
+        printf("File inode:\n");
+        printf("  uint16_t mode 0x%x ", inode->mode);
+        print_permission(inode);
+        printf("  uint16_t links %u\n", inode->links);
+        printf("  uint16_t uid %u\n", inode->uid);
+        printf("  uint16_t gid %u\n", inode->gid);
+        printf("  uint32_t size %u\n", inode->size);
+        printf("  uint32_t atime %u --- ", inode->atime);
+        print_time(inode->atime);
+        printf("  uint32_t mtime %u --- ", inode->mtime);
+        print_time(inode->mtime);
+        printf("  uint32_t ctime %u --- ", inode->ctime);
+        print_time(inode->ctime);
+    }
+    
 }
 
-void print_superblock(FILE *f) {
-   int offset = 0;
-   SuperBlock* superblock = malloc(sizeof(SuperBlock));
+void get_superblock(Args *args, FILE *f, SuperBlock *superblock) {
+    int offset = 0;
 
-   if ((offset = fseek(f, SUPER_OFFSET, SEEK_SET)) < 0) {
-      perror("fseek failed");
-      exit(-1);
-   }
+    if ((offset = fseek(f, SUPER_OFFSET, SEEK_SET)) < 0) {
+        perror("fseek failed");
+        exit(-1);
+    }
+
+    fread(superblock, sizeof(SuperBlock), 1, f);
    
-   fread(superblock, sizeof(SuperBlock), 1, f);
-   printf("Superblock Contents:\nStored Fields:\n");
-   printf("  ninodes %12u\n", superblock->ninodes);
-   printf("  i_blocks %11d\n", superblock->i_blocks);
-   printf("  z_blocks %11d\n", superblock->z_blocks);
-   printf("  firstdata %10u\n", superblock->firstdata);
-   printf("  log_zone_size %6d (zone size: %d)\n", 
-   superblock->log_zone_size, 
-   superblock->blocksize << superblock->log_zone_size);
-   printf("  max_file %11u\n", superblock->max_file);
-   printf("  magic%*s0x%x\n", 9, "", superblock->magic);
-   printf("  zones %14d\n", superblock->zones);
-   printf("  blocksize %10u\n", superblock->blocksize);
-   printf("  subversion %9u\n", superblock->subversion);
-   print_inodes(f, superblock);
+    if (args->verbose) {
+        printf("Superblock Contents:\nStored Fields:\n");
+        printf("  ninodes %12u\n", superblock->ninodes);
+        printf("  i_blocks %11d\n", superblock->i_blocks);
+        printf("  z_blocks %11d\n", superblock->z_blocks);
+        printf("  firstdata %10u\n", superblock->firstdata);
+        printf("  log_zone_size %6d (zone size: %d)\n", 
+        superblock->log_zone_size, 
+        superblock->blocksize << superblock->log_zone_size);
+        printf("  max_file %11u\n", superblock->max_file);
+        printf("  magic%*s0x%x\n", 9, "", superblock->magic);
+        printf("  zones %14d\n", superblock->zones);
+        printf("  blocksize %10u\n", superblock->blocksize);
+        printf("  subversion %9u\n", superblock->subversion);
+    }
 }
 
 

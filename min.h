@@ -97,6 +97,8 @@ void print_usage(int command_type);
 
 void get_partition(Args *args, FILE *f, Part *part);
 
-void print_superblock(FILE *f);
+void get_inode(Args *args, FILE *f, SuperBlock *super, Inode *inode);
+
+void get_superblock(Args *args, FILE *f, SuperBlock *superblock);
 
 #endif
