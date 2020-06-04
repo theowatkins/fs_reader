@@ -396,14 +396,13 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super,
 /* traverses path to find inode of specified file/directory.
    places inode in dest */
 void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, 
-                Part *part, Inode *dest, char *dest_name) {
-    char *find, *cur_name;
+                Part *part, Inode *dest) {
+    char *find;
     Inode *cur = root; /* start search at root inode */
 
     find = strtok(args->path, "/");
 
     while (find != NULL) {
-        cur_name = find;
         /* search current inode */
         if (cur->mode & DIRECTORY) {
             find_in_dir(f, cur, super, part, find, dest);
@@ -415,7 +414,6 @@ void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root,
         }
         find = strtok(NULL, "/"); 
     }
-    dest_name = cur_name;
 }
 
 void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part) {

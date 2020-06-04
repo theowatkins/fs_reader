@@ -118,6 +118,6 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super,
                 Part *part, char *find, Inode *dest);
 
 void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, 
-                Part *part, Inode *dest, char *dest_name);
+                Part *part, Inode *dest);
 
 #endif
