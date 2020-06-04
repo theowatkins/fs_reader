@@ -5,6 +5,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include <time.h>
 
 #define LS_FLAG 0
@@ -17,10 +18,12 @@
 #define SUB 2
 #define REG 1
 #define MINIX_TYPE 0x81
-#define BOOT_MAGIC 0x80
 #define SUPER_OFFSET 0x400
+#define SUPER_MAGIC 0x4D5A
 #define DIRECT_ZONES 7
 #define P_TABLE_SIZE 4
+#define ROOT 1
+#define NAME_SIZE 60
 
 #define FILE_TYPE_MASK 0170000 /* File type mask */
 #define REG_FILE 0100000 /* Regular file */
@@ -104,9 +107,14 @@ void print_usage(int command_type);
 
 void get_partition(Args *args, FILE *f, Part *part);
 
-void get_inode(Args *args, FILE *f, SuperBlock *super, Inode *inode);
+void get_root(Args *args, FILE *f, SuperBlock *super, Inode *inode, Part *part);
 
-void get_superblock(Args *args, FILE *f, SuperBlock *superblock);
+void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part);
+
 void get_zones(FILE *f, Inode *inode, SuperBlock *superblock);
+
+void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, Part *part, char *find, Inode *dest);
+
+void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, Part *part, Inode *dest, char *dest_name);
 
 #endif

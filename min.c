@@ -162,8 +162,7 @@ void get_partition(Args *args, FILE *f, Part *part) {
         print_part(p_table, REG);
     }
 
-    if (p_table[args->part]->bootind != BOOT_MAGIC ||
-            p_table[args->part]->type != MINIX_TYPE) {
+    if (p_table[args->part]->type != MINIX_TYPE) {
         fprintf(stderr, "Partition not bootable in Minix\n");
         exit(-1);
     }
@@ -201,8 +200,7 @@ void get_partition(Args *args, FILE *f, Part *part) {
             print_part(sp_table, SUB);
         }
 
-        if (sp_table[args->sub_part]->bootind != BOOT_MAGIC ||
-                sp_table[args->sub_part]->type != MINIX_TYPE) {
+        if (sp_table[args->sub_part]->type != MINIX_TYPE) {
             fprintf(stderr, "Subpartition not bootable in Minix\n");
             exit(-1);
         }
@@ -226,7 +224,7 @@ void get_partition(Args *args, FILE *f, Part *part) {
 
 void print_permission(Inode* inode){
     int cnt = 0;
-    printf("(");
+
     while (cnt != 10){
         if ((inode->mode & DIRECTORY) && cnt == 0) {
             printf("d");
@@ -273,7 +271,6 @@ void print_permission(Inode* inode){
             cnt++;
         }
     }
-    printf(")\n");
 }
 
 void print_time(time_t time){
@@ -284,72 +281,139 @@ void print_time(time_t time){
     printf("%s\n", buf);
 }
 
-void get_inode(Args *args, FILE *f, SuperBlock *super, Inode *inode){
-    int offset = 0;
-    if ((offset = fseek(f,  
-        (2 + super->i_blocks + super->z_blocks) * super->blocksize, 
-        SEEK_SET)) < 0) {
+void get_inode(FILE *f, SuperBlock *super, Inode *inode, Part * part, int inode_num) {
+    int offset = (2 + super->i_blocks + super->z_blocks) * super->blocksize 
+                + part->start + ((inode_num - 1) * sizeof(Inode));
+
+    if ((offset = fseek(f, offset, SEEK_SET)) < 0) {
         perror("fseek failed");
         exit(-1);
     }
-    fread(inode, sizeof(Inode), 1, f);
 
-    if (args->verbose){
-        printf("File inode:\n");
-        printf("  uint16_t mode 0x%x ", inode->mode);
-        print_permission(inode);
-        printf("  uint16_t links %u\n", inode->links);
-        printf("  uint16_t uid %u\n", inode->uid);
-        printf("  uint16_t gid %u\n", inode->gid);
-        printf("  uint32_t size %u\n", inode->size);
-        printf("  uint32_t atime %u --- ", inode->atime);
-        print_time(inode->atime);
-        printf("  uint32_t mtime %u --- ", inode->mtime);
-        print_time(inode->mtime);
-        printf("  uint32_t ctime %u --- ", inode->ctime);
-        print_time(inode->ctime);
-    }
-    
+    fread(inode, sizeof(Inode), 1, f); 
 }
 
-void get_zones(FILE *f, Inode *inode, SuperBlock *superblock){
-    int i, j;
-    int offset;
-    int zonesize =  superblock->blocksize << superblock->log_zone_size;
-    Dirent* dirent = malloc(sizeof(dirent));
+void print_inode(Inode *inode) {
+    int i;
 
-    printf("  Direct zones:\n");
+    printf("\nFile inode:\n");
+    printf("  uint16_t mode 0x%x ", inode->mode);
+    print_permission(inode);
+    printf("  uint16_t links %u\n", inode->links);
+    printf("  uint16_t uid %u\n", inode->uid);
+    printf("  uint16_t gid %u\n", inode->gid);
+    printf("  uint32_t size %u\n", inode->size);
+    printf("  uint32_t atime %u --- ", inode->atime);
+    print_time(inode->atime);
+    printf("  uint32_t mtime %u --- ", inode->mtime);
+    print_time(inode->mtime);
+    printf("  uint32_t ctime %u --- ", inode->ctime);
+    print_time(inode->ctime);
+    printf("\n  Direct zones:\n");
     for (i = 0; i < DIRECT_ZONES; i++){
-        printf("%*s", 10, "");
-        printf("zone[%d]  = %8d\n", i, inode->zone[i]);
+        printf("%12s", "");
+        printf("zone[%d]  =%10d\n", i, inode->zone[i]);
     }
-    printf("  uint32_t  indirect  = %8d\n", inode->indirect);
-    printf("  uint32_t double\n");
+    printf("%-12s", "  uint32_t");
+    printf("indirect%12d\n", inode->indirect);
+    printf("%-12s", "  uint32_t");
+    printf("double%14d\n\n", inode->two_indirect);
+}
 
-    for (j = 0; j < DIRECT_ZONES; j++){
-        if (inode->zone[j]) {
-            offset = inode->zone[j] *  zonesize;
+void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, Part *part, char *find, Inode *dest) {
+    int i, j;
+    int offset, read_start;
+    int read = 0;
+    int zonesize =  super->blocksize << super->log_zone_size;
+    Dirent* dirent = malloc(sizeof(Dirent));
+    Inode *print = malloc(sizeof(Inode));
+    
+    for (i = 0; i < DIRECT_ZONES; i++) {
+        if (inode->zone[i] == 0) {
+            read += zonesize;
+        }
+        else {
+            offset = part->start + inode->zone[i] *  zonesize;
             fseek(f, offset, SEEK_SET);
-            for (i = 0; i < zonesize; i += sizeof(Dirent)) {
+            read_start = ftell(f);
+            
+            for (j = 0; j < zonesize / sizeof(Dirent); j++) {
+
+                /* if entire directory has been read */
+                if (read >= inode->size) {
+                    if(find == NULL) {
+                        return;
+                    }
+                    fprintf(stderr, "Invalid path\n");
+                    exit(-1);
+                }
+
+                /* read entry and record number of bytes read */
+                fseek(f, read_start, SEEK_SET);
                 fread(dirent, sizeof(Dirent), 1, f);
-                printf("dirent inode %d name %s\n", dirent->inode, dirent->d_name);
+                read += ftell(f) - read_start;
+                read_start = ftell(f); /* save for next read */
+
+                /* check entry */
+                if (dirent->inode != 0) {
+                    if (find == NULL) {
+                        /* print every entry */
+                        get_inode(f, super, print, part, dirent->inode);
+                        print_permission(print);
+                        printf("%10d %s\n", print->size, dirent->d_name);
+                    }
+                    else if (strcmp(dirent->d_name, find) == 0) {
+                        /* found it, put it in dest */
+                        get_inode(f, super, dest, part, dirent->inode);
+                        return;
+                    }                   
+                }
             }
         }
     }
+    free(dirent);
+    free(print);
 }
 
-void get_superblock(Args *args, FILE *f, SuperBlock *superblock) {
+void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, Part *part, Inode *dest, char *dest_name) {
+    char *find, *cur_name;
+    Inode *cur = root; /* start search at root inode */
+
+    find = strtok(args->path, "/");
+
+    while (find != NULL) {
+        cur_name = find;
+        /* search current inode */
+        if (cur->mode & DIRECTORY) {
+            find_in_dir(f, cur, super, part, find, dest);
+            cur = dest;
+        }
+        else {
+            fprintf(stderr, "Invalid path\n");
+            exit(-1);
+        }
+        find = strtok(NULL, "/"); 
+    }
+    memcpy(dest_name, cur_name, NAME_SIZE);
+}
+
+void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part) {
     int offset = 0;
 
-    if ((offset = fseek(f, SUPER_OFFSET, SEEK_SET)) < 0) {
+    if ((offset = fseek(f, part->start + SUPER_OFFSET, SEEK_SET)) < 0) {
         perror("fseek failed");
         exit(-1);
     }
 
     fread(superblock, sizeof(SuperBlock), 1, f);
-   
+
+    if (superblock->magic != SUPER_MAGIC) {
+        fprintf(stderr, "Incorrect magic number - not a Minix filesystem\n");
+        exit(-1);
+    }
+
     if (args->verbose) {
-        printf("Superblock Contents:\nStored Fields:\n");
+        printf("\nSuperblock Contents:\nStored Fields:\n");
         printf("  ninodes %12u\n", superblock->ninodes);
         printf("  i_blocks %11d\n", superblock->i_blocks);
         printf("  z_blocks %11d\n", superblock->z_blocks);
