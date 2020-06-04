@@ -49,6 +49,11 @@ typedef struct Part {
     uint32_t end;
 } Part;
 
+typedef struct dirent {
+  uint32_t inode;
+  char  d_name[60];
+} Dirent;
+
 typedef struct __attribute__ ((__packed__)) PartitionEntry {
     uint8_t bootind;
     uint8_t start_head;
@@ -102,5 +107,6 @@ void get_partition(Args *args, FILE *f, Part *part);
 void get_inode(Args *args, FILE *f, SuperBlock *super, Inode *inode);
 
 void get_superblock(Args *args, FILE *f, SuperBlock *superblock);
+void get_zones(FILE *f, Inode *inode, SuperBlock *superblock);
 
 #endif

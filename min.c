@@ -312,6 +312,32 @@ void get_inode(Args *args, FILE *f, SuperBlock *super, Inode *inode){
     
 }
 
+void get_zones(FILE *f, Inode *inode, SuperBlock *superblock){
+    int i, j;
+    int offset;
+    int zonesize =  superblock->blocksize << superblock->log_zone_size;
+    Dirent* dirent = malloc(sizeof(dirent));
+
+    printf("  Direct zones:\n");
+    for (i = 0; i < DIRECT_ZONES; i++){
+        printf("%*s", 10, "");
+        printf("zone[%d]  = %8d\n", i, inode->zone[i]);
+    }
+    printf("  uint32_t  indirect  = %8d\n", inode->indirect);
+    printf("  uint32_t double\n");
+
+    for (j = 0; j < DIRECT_ZONES; j++){
+        if (inode->zone[j]) {
+            offset = inode->zone[j] *  zonesize;
+            fseek(f, offset, SEEK_SET);
+            for (i = 0; i < zonesize; i += sizeof(Dirent)) {
+                fread(dirent, sizeof(Dirent), 1, f);
+                printf("dirent inode %d name %s\n", dirent->inode, dirent->d_name);
+            }
+        }
+    }
+}
+
 void get_superblock(Args *args, FILE *f, SuperBlock *superblock) {
     int offset = 0;
 

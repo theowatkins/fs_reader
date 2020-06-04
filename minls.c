@@ -22,6 +22,7 @@ int main (int argc, char *argv[]) {
 
     get_superblock(args, f, superblock);
     get_inode(args, f, superblock, inode);
+    get_zones(f, inode, superblock);
 
     free(args);
     free(part);
