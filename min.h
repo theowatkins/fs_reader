@@ -107,14 +107,17 @@ void print_usage(int command_type);
 
 void get_partition(Args *args, FILE *f, Part *part);
 
-void get_root(Args *args, FILE *f, SuperBlock *super, Inode *inode, Part *part);
+void get_root(Args *args, FILE *f, SuperBlock *super, 
+                Inode *inode, Part *part);
 
 void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part);
 
 void get_zones(FILE *f, Inode *inode, SuperBlock *superblock);
 
-void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, Part *part, char *find, Inode *dest);
+void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, 
+                Part *part, char *find, Inode *dest);
 
-void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, Part *part, Inode *dest, char *dest_name);
+void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, 
+                Part *part, Inode *dest, char *dest_name);
 
 #endif

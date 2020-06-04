@@ -13,14 +13,15 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
 
     while ((opt = getopt(argc, argv, "vp:s:")) != -1) {
         switch (opt) {
-            case 'v':
+            case 'v': /* verbose */
                 args->verbose = 1;
                 break;
-            case 'p':
+            case 'p': /* partition */
                 args->part = atoi(optarg);
                 break;
-            case 's':
-                if (args->part == -1) {
+            case 's': /* subpartition */
+                if (args->part == -1) { 
+                    /* if no partition is given */
                     print_usage(command_type);
                     exit(-1);
                 }
@@ -32,7 +33,7 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
         }
     }
 
-    if (optind >= argc) {
+    if (optind >= argc) { /* no args after options */
         print_usage(command_type);
         exit(-1);
     }
@@ -58,10 +59,12 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
 
 void print_usage(int command_type) {
     if (command_type == LS_FLAG) {
-        printf("Usage : minls [ -v ] [ -p part [ -s subpart ] ] imagefile [ path ]\n");
+        printf("Usage : minls [ -v ] [ -p part [ -s subpart ] ] ");
+        printf("imagefile [ path ]\n");
     }
     else {
-        printf("Usage : minget [ -v ] [ -p part [ -s subpart ] ] imagefile srcpath [ dstpath ]\n");
+        printf("Usage : minget [ -v ] [ -p part [ -s subpart ] ] ");
+        printf("imagefile srcpath [ dstpath ]\n");
     }
 
     printf("\nOptions:\n");
@@ -95,14 +98,13 @@ void print_part(PartitionEntry **p, int type) {
             p[i]->type, p[i]->end_head, p[i]->end_sec, 
             p[i]->end_cyl, p[i]->lFirst, p[i]->size);
     }
-    
     printf("\n");
 }
 
 int partition_invalid(FILE *f) {
     uint8_t valid_1, valid_2;
 
-    /* head should be at beginning of disk or outer partition */
+    /* head will be at beginning of disk or outer partition */
     if (fseek(f, PART_TABLE_VALID, SEEK_CUR) < 0) {
         perror("fseek failed");
         exit(-1);
@@ -158,11 +160,11 @@ void get_partition(Args *args, FILE *f, Part *part) {
         }
     }
 
-    if (args->verbose) {
+    if (args->verbose) { /* print table */
         print_part(p_table, REG);
     }
 
-    if (p_table[args->part]->type != MINIX_TYPE) {
+    if (p_table[args->part]->type != MINIX_TYPE) { /* check type of table */
         fprintf(stderr, "Partition not bootable in Minix\n");
         exit(-1);
     }
@@ -196,20 +198,22 @@ void get_partition(Args *args, FILE *f, Part *part) {
             }
         }
 
-        if (args->verbose) {
+        if (args->verbose) { /* print subpartition table */
             print_part(sp_table, SUB);
         }
 
-        if (sp_table[args->sub_part]->type != MINIX_TYPE) {
+        if (sp_table[args->sub_part]->type != MINIX_TYPE) { 
             fprintf(stderr, "Subpartition not bootable in Minix\n");
             exit(-1);
         }
 
+        /* populate part with suppartition info */
         part->start = sp_table[args->sub_part]->lFirst * SECTOR_SIZE;
         part->end = part->start + 
             (sp_table[args->sub_part]->size * SECTOR_SIZE);
     }
     else {
+        /* populate part with partition info */
         part->start = p_table[args->part]->lFirst * SECTOR_SIZE;
         part->end = part->start + 
             (p_table[args->part]->size * SECTOR_SIZE);
@@ -281,16 +285,23 @@ void print_time(time_t time){
     printf("%s\n", buf);
 }
 
-void get_inode(FILE *f, SuperBlock *super, Inode *inode, Part * part, int inode_num) {
-    int offset = (2 + super->i_blocks + super->z_blocks) * super->blocksize 
+void get_inode(FILE *f, SuperBlock *super, Inode *inode, 
+                Part * part, int inode_num) {
+
+    int offset = (2 + super->i_blocks + super->z_blocks) * super->blocksize
                 + part->start + ((inode_num - 1) * sizeof(Inode));
 
-    if ((offset = fseek(f, offset, SEEK_SET)) < 0) {
+    /* go to inode */
+    if (fseek(f, offset, SEEK_SET) < 0) {
         perror("fseek failed");
         exit(-1);
     }
 
-    fread(inode, sizeof(Inode), 1, f); 
+    /* read inode */
+    if (fread(inode, sizeof(Inode), 1, f) < 0) {
+        perror("fread failed");
+        exit(-1);
+    } 
 }
 
 void print_inode(Inode *inode) {
@@ -320,9 +331,12 @@ void print_inode(Inode *inode) {
     printf("double%14d\n\n", inode->two_indirect);
 }
 
-void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, Part *part, char *find, Inode *dest) {
+/* finds file named find in directory, placing the file's inode in dest.
+   if find is NULL, prints directory contents */
+void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, 
+                Part *part, char *find, Inode *dest) {
     int i, j;
-    int offset, read_start;
+    int read_start;
     int read = 0;
     int zonesize =  super->blocksize << super->log_zone_size;
     Dirent* dirent = malloc(sizeof(Dirent));
@@ -333,9 +347,7 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, Part *part, char *fin
             read += zonesize;
         }
         else {
-            offset = part->start + inode->zone[i] *  zonesize;
-            fseek(f, offset, SEEK_SET);
-            read_start = ftell(f);
+            read_start = part->start + inode->zone[i] *  zonesize;
             
             for (j = 0; j < zonesize / sizeof(Dirent); j++) {
 
@@ -344,17 +356,23 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, Part *part, char *fin
                     if(find == NULL) {
                         return;
                     }
+                    /* no entry named 'find' in directory */
                     fprintf(stderr, "Invalid path\n");
                     exit(-1);
                 }
 
                 /* read entry and record number of bytes read */
-                fseek(f, read_start, SEEK_SET);
-                fread(dirent, sizeof(Dirent), 1, f);
+                if (fseek(f, read_start, SEEK_SET) < 0) {
+                    perror("fseek failed");
+                    exit(-1);
+                }
+                if (fread(dirent, sizeof(Dirent), 1, f) < 0) {
+                    perror("fread failed");
+                    exit(-1);
+                }
                 read += ftell(f) - read_start;
                 read_start = ftell(f); /* save for next read */
 
-                /* check entry */
                 if (dirent->inode != 0) {
                     if (find == NULL) {
                         /* print every entry */
@@ -375,7 +393,10 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super, Part *part, char *fin
     free(print);
 }
 
-void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, Part *part, Inode *dest, char *dest_name) {
+/* traverses path to find inode of specified file/directory.
+   places inode in dest */
+void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, 
+                Part *part, Inode *dest, char *dest_name) {
     char *find, *cur_name;
     Inode *cur = root; /* start search at root inode */
 
@@ -394,21 +415,27 @@ void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, Part *part, 
         }
         find = strtok(NULL, "/"); 
     }
-    memcpy(dest_name, cur_name, NAME_SIZE);
+    dest_name = cur_name;
 }
 
 void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part) {
-    int offset = 0;
 
-    if ((offset = fseek(f, part->start + SUPER_OFFSET, SEEK_SET)) < 0) {
+    /* go to superblock */
+    if (fseek(f, part->start + SUPER_OFFSET, SEEK_SET) < 0) {
         perror("fseek failed");
         exit(-1);
     }
 
-    fread(superblock, sizeof(SuperBlock), 1, f);
+    /* read superblock */
+    if (fread(superblock, sizeof(SuperBlock), 1, f) < 0) {
+        perror("fread failed");
+        exit(-1);
+    }
 
+    /* check magic number */
     if (superblock->magic != SUPER_MAGIC) {
-        fprintf(stderr, "Incorrect magic number - not a Minix filesystem\n");
+        fprintf(stderr, "Bad magic number. (0x%04x)\n", superblock->magic);
+        fprintf(stderr, "This doesn't look like a MINIX filesystem.\n");
         exit(-1);
     }
 
