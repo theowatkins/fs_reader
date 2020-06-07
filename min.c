@@ -51,7 +51,7 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
         }
 
         /* add destination path for minget if provided*/
-        if (optind + 2 < argc && command_type == GET_FLAG) {
+        if (optind + 2 < argc) {
             args->dst_path = argv[optind + 2];
         }
     }
@@ -308,17 +308,19 @@ void print_inode(Inode *inode) {
     int i;
 
     printf("\nFile inode:\n");
-    printf("  uint16_t mode 0x%x ", inode->mode);
+    printf("  uint16_t mode %*s0x%x ", 9, "", inode->mode);
+    printf("(");
     print_permission(inode);
-    printf("  uint16_t links %u\n", inode->links);
-    printf("  uint16_t uid %u\n", inode->uid);
-    printf("  uint16_t gid %u\n", inode->gid);
-    printf("  uint32_t size %u\n", inode->size);
-    printf("  uint32_t atime %u --- ", inode->atime);
+    printf(")\n");
+    printf("  uint16_t links %14u\n", inode->links);
+    printf("  uint16_t uid %16u\n", inode->uid);
+    printf("  uint16_t gid %16u\n", inode->gid);
+    printf("  uint32_t size %15u\n", inode->size);
+    printf("  uint32_t atime %14u --- ", inode->atime);
     print_time(inode->atime);
-    printf("  uint32_t mtime %u --- ", inode->mtime);
+    printf("  uint32_t mtime %14u --- ", inode->mtime);
     print_time(inode->mtime);
-    printf("  uint32_t ctime %u --- ", inode->ctime);
+    printf("  uint32_t ctime %14u --- ", inode->ctime);
     print_time(inode->ctime);
     printf("\n  Direct zones:\n");
     for (i = 0; i < DIRECT_ZONES; i++){
@@ -401,7 +403,7 @@ void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root,
     Inode *cur = root; /* start search at root inode */
 
     find = strtok(args->path, "/");
-
+    
     while (find != NULL) {
         /* search current inode */
         if (cur->mode & DIRECTORY) {
@@ -453,5 +455,54 @@ void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part) {
         printf("  subversion %9u\n", superblock->subversion);
     }
 }
+
+void copy_data(FILE *f, FILE *dst_fp, Inode* src, SuperBlock *superblock,
+Part *part){
+    int i, offset, buf_size;
+    i = offset = buf_size = 0;
+    int zonesize =  superblock->blocksize << superblock->log_zone_size;
+    char buf[src->size]; // buffer to read bytes into
+    int rem_size = src->size; // bytes left to read
+    int buf_offset = 0;
+    // loop through direct zones and read data until file size reached 
+    while(rem_size > 0 && i < DIRECT_ZONES) {
+        if (src->zone[i]) {
+            offset = part->start + src->zone[i] * zonesize;
+            if (fseek(f, offset, SEEK_SET) < 0) {
+                perror("fseek failed");
+                exit(-1);
+            }
+            buf_size = rem_size < zonesize ?  rem_size : zonesize;
+            if (fread(buf + buf_offset, buf_size, 1, f) < 0) {
+                perror("fread failed");
+                exit(-1);
+            }
+            buf_offset += buf_size;
+            rem_size-=buf_size;
+        }
+        // add zonesize zeroes if zone number is 0
+        else {
+            memset(buf + buf_offset, 0, zonesize);
+            buf_offset += zonesize;
+            rem_size-=zonesize;
+        }
+        i++;
+    }
+    // write to destination file
+    if (dst_fp){
+        if (fwrite(buf, src->size, 1, dst_fp) < 0) {
+            perror("fwrite failed");
+            exit(-1);
+        }
+    }
+    // if no destination given, write to stdout
+    else {
+        for (i = 0; i < src->size; i++)
+            printf("%c", buf[i]);
+    }
+}
+ 
+
+
 
 

@@ -120,4 +120,15 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super,
 void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root, 
                 Part *part, Inode *dest);
 
+
+void get_inode(FILE *f, SuperBlock *super, Inode *inode, 
+                Part * part, int inode_num);
+
+void print_inode(Inode *inode);
+
+void print_permission(Inode* inode);
+
+void copy_data(FILE *f, FILE *dst_fp, Inode* src, SuperBlock *superblock, 
+Part *part);
+
 #endif
