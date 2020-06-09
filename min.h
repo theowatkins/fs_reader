@@ -47,6 +47,13 @@ typedef struct Args {
     char *dst_path;
 } Args;
 
+// for minget
+typedef struct Buffer {
+    char* buf; //buffer
+    int rem_size; //bytes remaining to be read
+    int buf_offset; //current bytes read
+} Buffer;
+
 typedef struct Part {
     uint32_t start;
     uint32_t end;
@@ -132,9 +139,9 @@ void copy_data(FILE *f, FILE *dst_fp, Inode* src, SuperBlock *superblock,
 Part *part);
 
 void find_indirect(FILE *f, Inode *inode, SuperBlock *super, 
-                Part *part, char *find, Inode *dest);
+    Part *part, char *find, Inode *dest);
 
-void copy_indirect(FILE *f, char* buf, int rem_size, int buf_offset, 
-                SuperBlock *superblock, Inode* src, Part *part);
+void copy_indirect(FILE *f, Buffer buffer, SuperBlock *superblock, 
+    uint32_t zone_start, Part *part);
 
 #endif

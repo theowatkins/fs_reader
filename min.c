@@ -460,46 +460,77 @@ void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part) {
 
 void copy_data(FILE *f, FILE *dst_fp, Inode* src, SuperBlock *superblock,
 Part *part){
-    int i, offset, zone_offset, buf_size;
-    i = offset = buf_size = 0;
+    int i, j, offset, zone_offset, buf_size;
+    i = j = offset = buf_size = 0;
     uint32_t zone_num;
     int zonesize =  superblock->blocksize << superblock->log_zone_size;
-    char* buf = malloc(src->size); // buffer to read bytes into
-    int rem_size = src->size; // bytes left to read
-    int buf_offset = 0;
+    Buffer buffer;
+    buffer.buf = malloc(src->size); // buffer to read bytes into
+    buffer.rem_size = src->size; // bytes left to read
+    buffer.buf_offset = 0;
     //zones in indirect block
     int zones = superblock->blocksize / sizeof(src->indirect); 
     // loop through direct zones and read data until file size reached 
-    while(rem_size > 0 && i < DIRECT_ZONES) {
+    while(buffer.rem_size > 0 && i < DIRECT_ZONES) {
         if (src->zone[i]) {
             offset = part->start + src->zone[i] * zonesize;
             if (fseek(f, offset, SEEK_SET) < 0) {
                 perror("fseek failed");
                 exit(EXIT_FAILURE);
             }
-            buf_size = rem_size < zonesize ?  rem_size : zonesize;
-            if (fread(buf + buf_offset, buf_size, 1, f) < 0) {
+            buf_size = buffer.rem_size < zonesize ?  
+                buffer.rem_size : zonesize;
+            if (fread(buffer.buf + buffer.buf_offset, buf_size, 1, f) < 0) {
                 perror("fread failed");
                 exit(EXIT_FAILURE);
             }
-            buf_offset += buf_size;
-            rem_size-=buf_size;
+            buffer.buf_offset += buf_size;
+            buffer.rem_size-=buf_size;
         }
         // add zonesize zeroes if zone number is 0
         else {
-            memset(buf + buf_offset, 0, zonesize);
-            buf_offset += zonesize;
-            rem_size-=zonesize;
+            buf_size = buffer.rem_size < zonesize ?  
+                buffer.rem_size : zonesize;
+            memset(buffer.buf + buffer.buf_offset, 0, buf_size);
+            buffer.buf_offset += buf_size;
+            buffer.rem_size-=buf_size;
         }
         i++;
     }
     // check indirect block for data
     if (src->indirect){
-        copy_indirect(f, buf, rem_size, buf_offset, superblock, src, part);
+        copy_indirect(f, buffer, superblock, src->indirect, part);
+    }
+    // check indirect block for data
+    if (src->two_indirect){
+        offset = part->start + src->two_indirect * zonesize;
+        while(buffer.rem_size > 0 && j < zones){
+            // seek through zones in the double indirect block
+            if (fseek(f, offset, SEEK_SET) < 0) {
+                perror("fseek failed");
+                exit(EXIT_FAILURE);
+            }
+            offset += sizeof(src->two_indirect); 
+            j++;
+            // Get indirect zone number in the double indirect block
+            if (fread(&zone_num, sizeof(src->two_indirect), 1, f) < 0) {
+                perror("fread failed");
+                exit(EXIT_FAILURE);
+            }
+            if (zone_num) 
+                copy_indirect(f, buffer, superblock, zone_num, part);
+            else {
+                buf_size = buffer.rem_size < zones * zonesize ?  
+                    buffer.rem_size : zones * zonesize;
+                memset(buffer.buf + buffer.buf_offset, 0, buf_size);
+                buffer.buf_offset += buf_size;
+                buffer.rem_size-=buf_size;
+            }
+        }
     }
     // write to destination file
     if (dst_fp){
-        if (fwrite(buf, src->size, 1, dst_fp) < 0) {
+        if (fwrite(buffer.buf, src->size, 1, dst_fp) < 0) {
             perror("fwrite failed");
             exit(EXIT_FAILURE);
         }
@@ -507,29 +538,30 @@ Part *part){
     // if no destination given, write to stdout
     else {
         for (i = 0; i < src->size; i++)
-            printf("%c", buf[i]);
+            printf("%c", buffer.buf[i]);
     }
+    free(buffer.buf);
 }
 
-void copy_indirect(FILE *f, char* buf, int rem_size, int buf_offset, 
-    SuperBlock *superblock, Inode* src, Part *part) {
+void copy_indirect(FILE *f, Buffer buffer, SuperBlock *superblock, 
+    uint32_t zone_start, Part *part) {
 
     int buf_size, zone_offset, j;
     buf_size = zone_offset = j = 0;
     uint32_t zone_num;
     int zonesize =  superblock->blocksize << superblock->log_zone_size;
-    int offset = part->start + src->indirect * zonesize;
-    int zones = superblock->blocksize / sizeof(src->indirect); 
-    while(rem_size > 0 && j < zones){
+    int offset = part->start + zone_start * zonesize;
+    int zones = superblock->blocksize / sizeof(zone_start); 
+    while(buffer.rem_size > 0 && j < zones){
         // seek through zones in the indirect block
         if (fseek(f, offset, SEEK_SET) < 0) {
             perror("fseek failed");
             exit(EXIT_FAILURE);
         }
-        offset += sizeof(src->indirect); 
+        offset += sizeof(zone_start); 
         j++;
         // Get zone number in the indirect block
-        if (fread(&zone_num, sizeof(src->indirect), 1, f) < 0) {
+        if (fread(&zone_num, sizeof(zone_start), 1, f) < 0) {
             perror("fread failed");
             exit(EXIT_FAILURE);
         }
@@ -539,18 +571,21 @@ void copy_indirect(FILE *f, char* buf, int rem_size, int buf_offset,
                 perror("fseek failed");
                 exit(EXIT_FAILURE);
             }
-            buf_size = rem_size < zonesize ?  rem_size : zonesize;
-            if (fread(buf + buf_offset, buf_size, 1, f) < 0) {
+            buf_size = buffer.rem_size < zonesize ?  
+                buffer.rem_size : zonesize;
+            if (fread(buffer.buf + buffer.buf_offset, buf_size, 1, f) < 0) {
                 perror("fread failed");
                 exit(EXIT_FAILURE);
             }
-            buf_offset += buf_size;
-            rem_size-=buf_size;
+            buffer.buf_offset += buf_size;
+            buffer.rem_size-=buf_size;
         }
         else {
-            memset(buf + buf_offset, 0, zonesize);
-            buf_offset += zonesize;
-            rem_size-=zonesize;
+            buf_size = buffer.rem_size < zonesize ?  
+                buffer.rem_size : zonesize;
+            memset(buffer.buf + buffer.buf_offset, 0, buf_size);
+            buffer.buf_offset += buf_size;
+            buffer.rem_size-=buf_size;
         }
     } 
 }
