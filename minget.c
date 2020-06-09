@@ -9,12 +9,12 @@ int main (int argc, char *argv[]) {
    Inode* root_node = malloc(sizeof(Inode)); 
    Inode* from_node = malloc(sizeof(Inode)); 
 
-   get_args(argc, argv, args, LS_FLAG);
+   get_args(argc, argv, args, GET_FLAG);
 
    /* open image file for reading */
    if ((f = fopen(args->image_file, "r")) == NULL) {
-      perror("fopen failed");
-      exit(-1);
+      printf("Unable to open disk image \"%s\".\n", args->image_file);
+      exit(EXIT_FAILURE);
    }
 
    part->start = 0;
@@ -41,7 +41,7 @@ int main (int argc, char *argv[]) {
             printf("/");
       }
       printf("%s: Not a regular file. \n", args->path);
-      exit(-1);
+      exit(EXIT_FAILURE);
    }
 
    /* open file for writing in destination path */
@@ -49,7 +49,7 @@ int main (int argc, char *argv[]) {
       dst_fp = fopen(args->dst_path,"w");
       if(dst_fp == NULL) {
          perror("wrong destination path");   
-         exit(-1);             
+         exit(EXIT_FAILURE);             
       }
    }
 

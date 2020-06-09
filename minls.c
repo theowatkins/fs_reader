@@ -14,7 +14,7 @@ int main (int argc, char *argv[]) {
     /* open image file for reading */
     if ((f = fopen(args->image_file, "r")) == NULL) {
         perror("fopen failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     part->start = 0;
@@ -43,10 +43,7 @@ int main (int argc, char *argv[]) {
         /* check if file is a directory and print accordingly */
         if (dest_node->mode & DIRECTORY) {
             /* print path */
-            if(args->path[0] != '/') {
-                printf("/");
-            }
-            printf("%s:\n", args->path);
+            printf("%s:\n", save_path);
             /* this function prints the directory contents 
                when the file to find is NULL */
             find_in_dir(f, dest_node, superblock, part, NULL, NULL);

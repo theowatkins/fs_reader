@@ -23,19 +23,19 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
                 if (args->part == -1) { 
                     /* if no partition is given */
                     print_usage(command_type);
-                    exit(-1);
+                    exit(EXIT_FAILURE);
                 }
                 args->sub_part = atoi(optarg);
                 break;
             default: 
                 print_usage(command_type);
-                exit(-1);
+                exit(EXIT_FAILURE);
         }
     }
 
     if (optind >= argc) { /* no args after options */
         print_usage(command_type);
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     else {
         args->image_file = argv[optind];
@@ -47,7 +47,7 @@ void get_args(int argc, char **argv, Args *args, int command_type) {
         /* source path is required for minget */
         else if (command_type == GET_FLAG) {
             print_usage(command_type);
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         /* add destination path for minget if provided*/
@@ -64,7 +64,7 @@ void print_usage(int command_type) {
     }
     else {
         printf("Usage : minget [ -v ] [ -p part [ -s subpart ] ] ");
-        printf("imagefile srcpath [ dstpath ]\n");
+        printf("imagefile minixpath [ hostpath ]\n");
     }
 
     printf("\nOptions:\n");
@@ -107,17 +107,17 @@ int partition_invalid(FILE *f) {
     /* head will be at beginning of disk or outer partition */
     if (fseek(f, PART_TABLE_VALID, SEEK_CUR) < 0) {
         perror("fseek failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     /* read signature */
     if (fread(&valid_1, 1, 1, f) < 1) {
         perror("fread failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     if (fread(&valid_2, 1, 1, f) < 1) {
         perror("fread failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if (valid_1 == VALID_ONE && valid_2 == VALID_TWO) {
@@ -143,20 +143,20 @@ void get_partition(Args *args, FILE *f, Part *part) {
     /* check partition table validity */
     if (partition_invalid(f)) {
         fprintf(stderr, "Invalid partition table\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     /* navigate to partition table */
     if (fseek(f, PART_TABLE_LOC, SEEK_SET) < 0) {
         perror("fseek failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     /* read partition table */
     for (i = 0; i < P_TABLE_SIZE; i++) {
         if (fread(p_table[i], sizeof(PartitionEntry), 1, f) < 1) {
             perror("fread failed");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
     }
 
@@ -166,7 +166,7 @@ void get_partition(Args *args, FILE *f, Part *part) {
 
     if (p_table[args->part]->type != MINIX_TYPE) { /* check type of table */
         fprintf(stderr, "Partition not bootable in Minix\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if (args->sub_part != -1) {
@@ -174,27 +174,27 @@ void get_partition(Args *args, FILE *f, Part *part) {
         if (fseek(f, p_table[args->part]->lFirst * SECTOR_SIZE, 
                 SEEK_SET) < 0) {
             perror("fseek failed");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         /* check sub partition table validity */
         if (partition_invalid(f)) {
             fprintf(stderr, "Invalid sub-partition table\n");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         /* go to sub partition table */
         if (fseek(f, (p_table[args->part]->lFirst * SECTOR_SIZE) 
                 + PART_TABLE_LOC, SEEK_SET) < 0) {
             perror("fseek failed");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         /* read subpartition table */
         for (i = 0; i < P_TABLE_SIZE; i++) {
             if (fread(sp_table[i], sizeof(PartitionEntry), 1, f) < 1) {
                 perror("fread failed");
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
         }
 
@@ -204,7 +204,7 @@ void get_partition(Args *args, FILE *f, Part *part) {
 
         if (sp_table[args->sub_part]->type != MINIX_TYPE) { 
             fprintf(stderr, "Subpartition not bootable in Minix\n");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         /* populate part with suppartition info */
@@ -294,13 +294,13 @@ void get_inode(FILE *f, SuperBlock *super, Inode *inode,
     /* go to inode */
     if (fseek(f, offset, SEEK_SET) < 0) {
         perror("fseek failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     /* read inode */
     if (fread(inode, sizeof(Inode), 1, f) < 0) {
         perror("fread failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     } 
 }
 
@@ -360,17 +360,17 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super,
                     }
                     /* no entry named 'find' in directory */
                     fprintf(stderr, "Invalid path\n");
-                    exit(-1);
+                    exit(EXIT_FAILURE);
                 }
 
                 /* read entry and record number of bytes read */
                 if (fseek(f, read_start, SEEK_SET) < 0) {
                     perror("fseek failed");
-                    exit(-1);
+                    exit(EXIT_FAILURE);
                 }
                 if (fread(dirent, sizeof(Dirent), 1, f) < 0) {
                     perror("fread failed");
-                    exit(-1);
+                    exit(EXIT_FAILURE);
                 }
                 read += ftell(f) - read_start;
                 read_start = ftell(f); /* save for next read */
@@ -391,6 +391,8 @@ void find_in_dir(FILE *f, Inode *inode, SuperBlock *super,
             }
         }
     }
+    if (inode->indirect)
+        find_indirect(f, inode, super, part, find, dest);
     free(dirent);
     free(print);
 }
@@ -412,7 +414,7 @@ void find_file(Args *args, FILE *f, SuperBlock *super, Inode *root,
         }
         else {
             fprintf(stderr, "Invalid path\n");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
         find = strtok(NULL, "/"); 
     }
@@ -423,20 +425,20 @@ void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part) {
     /* go to superblock */
     if (fseek(f, part->start + SUPER_OFFSET, SEEK_SET) < 0) {
         perror("fseek failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     /* read superblock */
     if (fread(superblock, sizeof(SuperBlock), 1, f) < 0) {
         perror("fread failed");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     /* check magic number */
     if (superblock->magic != SUPER_MAGIC) {
         fprintf(stderr, "Bad magic number. (0x%04x)\n", superblock->magic);
         fprintf(stderr, "This doesn't look like a MINIX filesystem.\n");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if (args->verbose) {
@@ -458,24 +460,27 @@ void get_superblock(Args *args, FILE *f, SuperBlock *superblock, Part *part) {
 
 void copy_data(FILE *f, FILE *dst_fp, Inode* src, SuperBlock *superblock,
 Part *part){
-    int i, offset, buf_size;
+    int i, offset, zone_offset, buf_size;
     i = offset = buf_size = 0;
+    uint32_t zone_num;
     int zonesize =  superblock->blocksize << superblock->log_zone_size;
-    char buf[src->size]; // buffer to read bytes into
+    char* buf = malloc(src->size); // buffer to read bytes into
     int rem_size = src->size; // bytes left to read
     int buf_offset = 0;
+    //zones in indirect block
+    int zones = superblock->blocksize / sizeof(src->indirect); 
     // loop through direct zones and read data until file size reached 
     while(rem_size > 0 && i < DIRECT_ZONES) {
         if (src->zone[i]) {
             offset = part->start + src->zone[i] * zonesize;
             if (fseek(f, offset, SEEK_SET) < 0) {
                 perror("fseek failed");
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
             buf_size = rem_size < zonesize ?  rem_size : zonesize;
             if (fread(buf + buf_offset, buf_size, 1, f) < 0) {
                 perror("fread failed");
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
             buf_offset += buf_size;
             rem_size-=buf_size;
@@ -488,11 +493,15 @@ Part *part){
         }
         i++;
     }
+    // check indirect block for data
+    if (src->indirect){
+        copy_indirect(f, buf, rem_size, buf_offset, superblock, src, part);
+    }
     // write to destination file
     if (dst_fp){
         if (fwrite(buf, src->size, 1, dst_fp) < 0) {
             perror("fwrite failed");
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
     }
     // if no destination given, write to stdout
@@ -500,6 +509,124 @@ Part *part){
         for (i = 0; i < src->size; i++)
             printf("%c", buf[i]);
     }
+}
+
+void copy_indirect(FILE *f, char* buf, int rem_size, int buf_offset, 
+    SuperBlock *superblock, Inode* src, Part *part) {
+
+    int buf_size, zone_offset, j;
+    buf_size = zone_offset = j = 0;
+    uint32_t zone_num;
+    int zonesize =  superblock->blocksize << superblock->log_zone_size;
+    int offset = part->start + src->indirect * zonesize;
+    int zones = superblock->blocksize / sizeof(src->indirect); 
+    while(rem_size > 0 && j < zones){
+        // seek through zones in the indirect block
+        if (fseek(f, offset, SEEK_SET) < 0) {
+            perror("fseek failed");
+            exit(EXIT_FAILURE);
+        }
+        offset += sizeof(src->indirect); 
+        j++;
+        // Get zone number in the indirect block
+        if (fread(&zone_num, sizeof(src->indirect), 1, f) < 0) {
+            perror("fread failed");
+            exit(EXIT_FAILURE);
+        }
+        zone_offset = part->start +  zone_num * zonesize; 
+        if (zone_offset) {
+            if (fseek(f, zone_offset, SEEK_SET) < 0) {
+                perror("fseek failed");
+                exit(EXIT_FAILURE);
+            }
+            buf_size = rem_size < zonesize ?  rem_size : zonesize;
+            if (fread(buf + buf_offset, buf_size, 1, f) < 0) {
+                perror("fread failed");
+                exit(EXIT_FAILURE);
+            }
+            buf_offset += buf_size;
+            rem_size-=buf_size;
+        }
+        else {
+            memset(buf + buf_offset, 0, zonesize);
+            buf_offset += zonesize;
+            rem_size-=zonesize;
+        }
+    } 
+}
+
+/* finds file named find in directory if not found in direct zones, 
+   placing the file's inode in dest.
+   if find is NULL, prints directory contents */
+void find_indirect(FILE *f, Inode *inode, SuperBlock *super, 
+                Part *part, char *find, Inode *dest) {
+    int i, j, read_start, zone_offset;
+    uint32_t zone_num;
+    int read = 0;
+    int zonesize =  super->blocksize << super->log_zone_size;
+    Dirent* dirent = malloc(sizeof(Dirent));
+    Inode *print = malloc(sizeof(Inode));
+    int zones = super->blocksize / sizeof(inode->indirect);
+    read_start =  part->start + inode->indirect *  zonesize; 
+    
+    for (i = 0; i < zones; i++) {
+        // seek through zones in the indirect block
+        if (fseek(f, read_start, SEEK_SET) < 0) {
+            perror("fseek failed");
+            exit(EXIT_FAILURE);
+        }
+        read_start += sizeof(inode->indirect); 
+        // Get zone number in the indirect block
+        if (fread(&zone_num, sizeof(inode->indirect), 1, f) < 0) {
+            perror("fread failed");
+            exit(EXIT_FAILURE);
+        }
+        zone_offset = part->start +  zone_num *  zonesize; 
+        // search zone if non empty else advance to next zone 
+        if (zone_offset) {
+    
+            for (j = 0; j < zonesize / sizeof(Dirent); j++) {
+
+                /* if entire directory has been read */
+                if (read >= inode->size) {
+                    if(find == NULL) {
+                        return;
+                    }
+                    /* no entry named 'find' in directory */
+                    fprintf(stderr, "Invalid path\n");
+                    exit(EXIT_FAILURE);
+                }
+
+                /* read entry and record number of bytes read */
+                if (fseek(f, zone_offset, SEEK_SET) < 0) {
+                    perror("fseek failed");
+                    exit(EXIT_FAILURE);
+                }
+                if (fread(dirent, sizeof(Dirent), 1, f) < 0) {
+                    perror("fread failed");
+                    exit(EXIT_FAILURE);
+                }
+                read += ftell(f) - zone_offset;
+                zone_offset = ftell(f); /* save for next read */
+
+                if (dirent->inode != 0) {
+                    if (find == NULL) {
+                        /* print every entry */
+                        get_inode(f, super, print, part, dirent->inode);
+                        print_permission(print);
+                        printf("%10d %s\n", print->size, dirent->d_name);
+                    }
+                    else if (strcmp(dirent->d_name, find) == 0) {
+                        /* found it, put it in dest */
+                        get_inode(f, super, dest, part, dirent->inode);
+                        return;
+                    }                   
+                }
+            }
+        }
+    }
+    free(dirent);
+    free(print);
 }
  
 

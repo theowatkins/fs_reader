@@ -131,4 +131,10 @@ void print_permission(Inode* inode);
 void copy_data(FILE *f, FILE *dst_fp, Inode* src, SuperBlock *superblock, 
 Part *part);
 
+void find_indirect(FILE *f, Inode *inode, SuperBlock *super, 
+                Part *part, char *find, Inode *dest);
+
+void copy_indirect(FILE *f, char* buf, int rem_size, int buf_offset, 
+                SuperBlock *superblock, Inode* src, Part *part);
+
 #endif
