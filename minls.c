@@ -1,3 +1,5 @@
+/*CPE 453 Assignment 6*/
+/* this file contains the main for the minls command */
 #include "min.h"
 
 int main (int argc, char *argv[]) {
@@ -9,7 +11,7 @@ int main (int argc, char *argv[]) {
     Inode* dest_node = malloc(sizeof(Inode)); 
     char *save_path;
 
-    get_args(argc, argv, args, LS_FLAG);
+    get_args(argc, argv, args, LS_FLAG); /* populate args */
 
     /* open image file for reading */
     if ((f = fopen(args->image_file, "r")) == NULL) {
@@ -17,13 +19,15 @@ int main (int argc, char *argv[]) {
         exit(EXIT_FAILURE);
     }
 
+    /* start of parition is start of disk if no partition specified */
     part->start = 0;
+
     if (args->part != -1) {
         /* get partition info */
         get_partition(args, f, part);
     }
 
-    get_superblock(args, f, superblock, part);
+    get_superblock(args, f, superblock, part); /* populate superblock */
 
     /* get the root inode */
     get_inode(f, superblock, root_node, part, ROOT);
@@ -49,10 +53,11 @@ int main (int argc, char *argv[]) {
             find_in_dir(f, dest_node, superblock, part, NULL, NULL);
         }
         else {
+            /* print file info */
             print_permission(dest_node);
             printf("%10d %s\n", dest_node->size, save_path);
-            free(save_path);
         }
+        free(save_path);
     }
     else {
         if (args->verbose) {

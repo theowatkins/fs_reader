@@ -1,3 +1,5 @@
+/* CPE 453 Assignment 6 */
+/* this file contains the main for the minget command */
 #include "min.h"
 
 int main (int argc, char *argv[]) {
@@ -9,7 +11,7 @@ int main (int argc, char *argv[]) {
    Inode* root_node = malloc(sizeof(Inode)); 
    Inode* from_node = malloc(sizeof(Inode)); 
 
-   get_args(argc, argv, args, GET_FLAG);
+   get_args(argc, argv, args, GET_FLAG); /* populate args */
 
    /* open image file for reading */
    if ((f = fopen(args->image_file, "r")) == NULL) {
@@ -23,7 +25,7 @@ int main (int argc, char *argv[]) {
       get_partition(args, f, part);
    }
 
-   get_superblock(args, f, superblock, part);
+   get_superblock(args, f, superblock, part); /* populate superblock */
 
    /* get the root inode */
    get_inode(f, superblock, root_node, part, ROOT);
@@ -34,12 +36,8 @@ int main (int argc, char *argv[]) {
       print_inode(from_node);
    }
 
-   /* check if file is a directory and print accordingly */
-   if (from_node->mode & DIRECTORY) {
-      /* print path */
-      if (args->path[0] != '/') {
-            printf("/");
-      }
+   /* check if file is a regular file */
+   if ((from_node->mode & FILE_TYPE_MASK) != REG_FILE) {
       printf("%s: Not a regular file. \n", args->path);
       exit(EXIT_FAILURE);
    }

@@ -1,3 +1,5 @@
+/* CPE 453 Assignment 6 */
+/* header file */
 #ifndef H_MIN
 #define H_MIN
 
@@ -5,6 +7,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <getopt.h>
 #include <string.h>
 #include <time.h>
 
@@ -47,11 +50,10 @@ typedef struct Args {
     char *dst_path;
 } Args;
 
-// for minget
 typedef struct Buffer {
-    char* buf; //buffer
-    int rem_size; //bytes remaining to be read
-    int buf_offset; //current bytes read
+    char* buf; /* buffer */
+    int rem_size; /* bytes remaining to be read */
+    int buf_offset; /* current bytes read */
 } Buffer;
 
 typedef struct Part {
@@ -73,7 +75,7 @@ typedef struct __attribute__ ((__packed__)) PartitionEntry {
     uint8_t end_head;
     uint8_t end_sec;
     uint8_t end_cyl;
-    uint32_t lFirst;  
+    uint32_t lFirst; 
     uint32_t size;
 } PartitionEntry;
 
@@ -136,12 +138,12 @@ void print_inode(Inode *inode);
 void print_permission(Inode* inode);
 
 void copy_data(FILE *f, FILE *dst_fp, Inode* src, SuperBlock *superblock, 
-Part *part);
+                Part *part);
 
 void find_indirect(FILE *f, Inode *inode, SuperBlock *super, 
-    Part *part, char *find, Inode *dest);
+                    Part *part, char *find, Inode *dest, int read);
 
-void copy_indirect(FILE *f, Buffer buffer, SuperBlock *superblock, 
-    uint32_t zone_start, Part *part);
+void copy_indirect(FILE *f, Buffer *buffer, SuperBlock *superblock, 
+                    uint32_t zone_start, Part *part);
 
 #endif
